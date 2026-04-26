@@ -1,0 +1,210 @@
+CHECKLIST DEVOPS - PRODUCCION APPCAKE (FRONTEND + BACKEND)
+==========================================================
+
+Objetivo
+--------
+Dejar React/Vite + Spring Boot en AWS EC2 listos para go-live con seguridad, rendimiento y capacidad de rollback.
+
+
+1) Infraestructura base (EC2)
+-----------------------------
+[ ] Instancia EC2 actualizada (paquetes del sistema al dia).
+[ ] Security Group configurado:
+    [ ] 22 (SSH) solo desde IPs administrativas.
+    [ ] 80 (HTTP) publico.
+    [ ] 443 (HTTPS) publico.
+    [ ] 8080 cerrado al publico (si backend va detras de Nginx).
+[ ] Disco con espacio suficiente para logs, uploads y backups.
+[ ] Zona horaria y hora del servidor correctas (NTP).
+
+
+2) Dominio y DNS
+----------------
+[ ] Dominio apuntando a la IP publica de EC2 (registro A).
+[ ] Si usas subdominios:
+    [ ] app.tudominio.com -> frontend (Nginx)
+    [ ] api.tudominio.com -> backend (proxy Nginx)
+[ ] TTL DNS razonable para cambios (ej. 300s durante despliegue inicial).
+
+
+3) Backend Spring Boot (produccion)
+-----------------------------------
+[ ] App corriendo como servicio (systemd), no manual en terminal.
+[ ] Variables sensibles fuera del repo (JWT secret, DB, etc.).
+[ ] CORS configurado para el dominio real del frontend.
+[ ] Endpoint de salud activo (ej. /actuator/health o /api/health).
+[ ] Limites de upload definidos (tamano max de archivos).
+[ ] Ruta /uploads accesible por URL publica.
+[ ] Logs estructurados y rotacion de logs configurada.
+
+Ejemplo CORS esperado:
+- Permitir origen: https://app.tudominio.com
+- Metodos: GET, POST, PUT, DELETE, OPTIONS
+- Headers: Authorization, Content-Type
+
+
+4) Frontend React/Vite (produccion)
+-----------------------------------
+[ ] Crear archivo .env.production con:
+    VITE_API_URL=https://api.tudominio.com/api
+    VITE_UPLOADS_URL=https://api.tudominio.com
+[ ] No dejar localhost hardcodeado.
+[ ] Ejecutar validaciones:
+    [ ] npm run lint
+    [ ] npm run build
+[ ] Publicar carpeta dist/ en Nginx (o bucket/CDN si aplica).
+[ ] Confirmar rutas SPA (fallback a index.html).
+
+
+5) Nginx (reverse proxy + SPA)
+------------------------------
+[ ] Nginx instalado y habilitado como servicio.
+[ ] Config frontend:
+    [ ] root apuntando a /var/www/appcake/dist
+    [ ] try_files $uri $uri/ /index.html
+[ ] Config API proxy:
+    [ ] /api -> http://127.0.0.1:8080/api
+    [ ] /uploads -> http://127.0.0.1:8080/uploads
+[ ] Forward de headers correctos:
+    [ ] Host
+    [ ] X-Real-IP
+    [ ] X-Forwarded-For
+    [ ] X-Forwarded-Proto
+[ ] Client upload size (ej. client_max_body_size 10M o mas segun necesidad).
+[ ] Verificar config: nginx -t
+[ ] Recargar seguro: systemctl reload nginx
+
+Plantilla minima de server block (referencia):
+
+server {
+    listen 80;
+    server_name app.tudominio.com api.tudominio.com;
+
+    location / {
+        root /var/www/appcake/dist;
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8080/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /uploads/ {
+        proxy_pass http://127.0.0.1:8080/uploads/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+
+6) HTTPS (obligatorio)
+----------------------
+[ ] Certificado SSL con Let's Encrypt (certbot).
+[ ] Redireccion forzada HTTP -> HTTPS.
+[ ] Verificar renovacion automatica (certbot timer/cron).
+[ ] Validar TLS en navegador (candado correcto sin warnings).
+
+
+7) Cache y rendimiento (Nginx)
+------------------------------
+[ ] Assets estaticos con hash (Vite ya los genera).
+[ ] Cache largo para assets versionados:
+    Cache-Control: public, max-age=31536000, immutable
+[ ] index.html sin cache agresivo:
+    Cache-Control: no-cache
+[ ] Compresion habilitada (gzip y/o brotli si disponible).
+
+Ejemplo directivas utiles:
+- location ~* \.(js|css|png|jpg|jpeg|gif|svg|webp|ico)$ {
+      expires 1y;
+      add_header Cache-Control "public, immutable";
+  }
+- location = /index.html {
+      add_header Cache-Control "no-cache";
+  }
+
+
+8) Seguridad minima recomendada
+-------------------------------
+[ ] Headers de seguridad en Nginx:
+    [ ] X-Content-Type-Options nosniff
+    [ ] X-Frame-Options SAMEORIGIN
+    [ ] Referrer-Policy strict-origin-when-cross-origin
+    [ ] Content-Security-Policy (ajustada al proyecto)
+[ ] JWT secret fuerte y rotado por ambiente.
+[ ] Credenciales admin no hardcodeadas en frontend.
+[ ] Fail2ban / rate limit para endpoints sensibles (login).
+[ ] Backups periodicos de base de datos y uploads.
+
+
+9) Monitoreo y alertas
+----------------------
+[ ] Healthcheck del backend monitorizado.
+[ ] Logs de Nginx y app centralizados (CloudWatch o similar).
+[ ] Alertas basicas:
+    [ ] 5xx altos
+    [ ] uso CPU/RAM alto
+    [ ] disco bajo
+[ ] Trazabilidad de errores frontend (Sentry opcional).
+
+
+10) Pruebas de salida (Go-Live)
+-------------------------------
+[ ] Flujo publico:
+    [ ] Carga catalogo
+    [ ] Carga imagenes de /uploads
+    [ ] Boton WhatsApp funcional
+[ ] Flujo admin:
+    [ ] Login OK
+    [ ] Crear pastel con imagen
+    [ ] Editar pastel
+    [ ] Eliminar pastel
+    [ ] Expiracion JWT -> redireccion a login en 401
+[ ] Prueba en movil real (Android/iOS) y desktop.
+[ ] Lighthouse sin errores criticos.
+
+
+11) Plan de rollback (obligatorio)
+----------------------------------
+[ ] Mantener version anterior del frontend (dist previo).
+[ ] Deploy atomico con carpeta versionada (ej. /var/www/appcake/releases/).
+[ ] Symlink current -> release activo.
+[ ] Si falla, volver symlink al release anterior y recargar Nginx.
+[ ] Script/documento de rollback probado al menos una vez.
+
+
+12) Comandos rapidos utiles
+---------------------------
+# Frontend
+npm run lint
+npm run build
+
+# Nginx
+sudo nginx -t
+sudo systemctl reload nginx
+sudo systemctl status nginx
+
+# Logs
+sudo journalctl -u nginx -f
+sudo journalctl -u appcake-backend -f
+
+
+Checklist final de aprobacion
+-----------------------------
+[ ] Lint OK
+[ ] Build OK
+[ ] HTTPS OK
+[ ] CORS OK
+[ ] Uploads OK
+[ ] JWT 401 redirect OK
+[ ] Cache headers OK
+[ ] Monitoreo OK
+[ ] Rollback probado
+
+Estado recomendado para salir a produccion: SOLO cuando todos los puntos esten en [ ] -> [x]
