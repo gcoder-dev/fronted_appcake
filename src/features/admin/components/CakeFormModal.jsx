@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { buildImageUrl } from '../../../shared/config/api.js'
 
 const initialForm = {
   nombre: '',
@@ -11,7 +10,6 @@ const initialForm = {
 
 export function CakeFormModal({ isOpen, mode, cake, onClose, onSubmit, isSaving }) {
   const [form, setForm] = useState(initialForm)
-  const [previewUrl, setPreviewUrl] = useState('')
 
   useEffect(() => {
     if (!isOpen) return
@@ -23,11 +21,9 @@ export function CakeFormModal({ isOpen, mode, cake, onClose, onSubmit, isSaving 
         imagenArchivo: null,
         imagenUrl: cake.imagen || '',
       })
-      setPreviewUrl(buildImageUrl(cake.imagen))
       return
     }
     setForm(initialForm)
-    setPreviewUrl('')
   }, [cake, isOpen])
 
   const modalTitle = useMemo(() => (mode === 'edit' ? 'Editar pastel' : 'Nuevo pastel'), [mode])
@@ -43,7 +39,6 @@ export function CakeFormModal({ isOpen, mode, cake, onClose, onSubmit, isSaving 
     const file = event.target.files?.[0]
     if (!file) return
     setForm((prev) => ({ ...prev, imagenArchivo: file }))
-    setPreviewUrl(URL.createObjectURL(file))
   }
 
   const handleSubmit = async (event) => {
@@ -123,13 +118,6 @@ export function CakeFormModal({ isOpen, mode, cake, onClose, onSubmit, isSaving 
               disabled={isSaving}
             />
           </label>
-
-          {previewUrl && (
-            <div className="md:col-span-2">
-              <p className="mb-2 text-sm font-semibold text-[--color-brown]">Vista previa</p>
-              <img src={previewUrl} alt="Vista previa del pastel" className="h-52 w-full rounded-2xl object-cover" />
-            </div>
-          )}
 
           <div className="md:col-span-2 flex justify-end gap-3">
             <button type="button" onClick={onClose} className="btn-secondary" disabled={isSaving}>
