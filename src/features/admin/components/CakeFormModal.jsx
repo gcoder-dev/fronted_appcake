@@ -10,6 +10,7 @@ const initialForm = {
 
 export function CakeFormModal({ isOpen, mode, cake, onClose, onSubmit, isSaving }) {
   const [form, setForm] = useState(initialForm)
+  const [localError, setLocalError] = useState('')
 
   useEffect(() => {
     if (!isOpen) return
@@ -21,9 +22,11 @@ export function CakeFormModal({ isOpen, mode, cake, onClose, onSubmit, isSaving 
         imagenArchivo: null,
         imagenUrl: cake.imagen || '',
       })
+      setLocalError('')
       return
     }
     setForm(initialForm)
+    setLocalError('')
   }, [cake, isOpen])
 
   const modalTitle = useMemo(() => (mode === 'edit' ? 'Editar pastel' : 'Nuevo pastel'), [mode])
@@ -32,21 +35,35 @@ export function CakeFormModal({ isOpen, mode, cake, onClose, onSubmit, isSaving 
 
   const handleChange = (event) => {
     const { name, value } = event.target
-    setForm((prev) => ({ ...prev, [name]: value }))
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+      ...(name === 'imagenUrl' ? { imagenArchivo: null } : {}),
+    }))
+    setLocalError('')
   }
 
   const handleFileChange = (event) => {
     const file = event.target.files?.[0]
     if (!file) return
-    setForm((prev) => ({ ...prev, imagenArchivo: file }))
+    const fileType = file.type?.toLowerCase() ?? ''
+    if (fileType.includes('heic') || fileType.includes('heif')) {
+      setLocalError('Formato HEIC/HEIF no soportado. Usa JPG, PNG o WEBP.')
+      event.target.value = ''
+      return
+    }
+
+    setForm((prev) => ({ ...prev, imagenArchivo: file, imagenUrl: '' }))
+    setLocalError('')
   }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
     if (isSaving) return
+    const normalizedPrice = String(form.precio).replace(',', '.')
     await onSubmit({
       ...form,
-      precio: Number(form.precio),
+      precio: Number(normalizedPrice),
     })
   }
 
@@ -66,6 +83,10 @@ export function CakeFormModal({ isOpen, mode, cake, onClose, onSubmit, isSaving 
         </div>
 
         <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+          {localError && (
+            <p className="md:col-span-2 rounded-lg bg-red-100 px-4 py-2 text-sm text-red-700">{localError}</p>
+          )}
+
           <label className="space-y-2 md:col-span-2">
             <span className="text-sm font-semibold text-[--color-brown]">Nombre</span>
             <input className="input-base" name="nombre" value={form.nombre} onChange={handleChange} required />
@@ -101,7 +122,7 @@ export function CakeFormModal({ isOpen, mode, cake, onClose, onSubmit, isSaving 
             <input
               className="input-base py-2"
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
               onChange={handleFileChange}
               disabled={isSaving}
             />

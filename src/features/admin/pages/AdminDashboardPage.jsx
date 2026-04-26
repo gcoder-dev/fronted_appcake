@@ -21,6 +21,9 @@ export function AdminDashboardPage() {
 
   const mode = selectedCake ? 'edit' : 'create'
 
+  const getApiErrorMessage = (err, fallbackMessage) =>
+    err?.response?.data?.message || err?.response?.data?.error || fallbackMessage
+
   const loadPasteles = async () => {
     setLoading(true)
     setError('')
@@ -65,8 +68,8 @@ export function AdminDashboardPage() {
       }
       closeModal()
       await loadPasteles()
-    } catch (_err) {
-      setError('No se pudo guardar el pastel.')
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'No se pudo guardar el pastel.'))
     } finally {
       setSaving(false)
     }
@@ -80,8 +83,8 @@ export function AdminDashboardPage() {
       setDeletingId(id)
       await deletePastel(id)
       await loadPasteles()
-    } catch (_err) {
-      setError('No se pudo eliminar el pastel.')
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'No se pudo eliminar el pastel.'))
     } finally {
       setDeletingId(null)
     }
