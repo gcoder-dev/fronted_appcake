@@ -8,6 +8,7 @@ export function PublicCatalogPage() {
   const [telefono, setTelefono] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [selectedCake, setSelectedCake] = useState(null)
 
   useEffect(() => {
     async function loadData() {
@@ -24,6 +25,19 @@ export function PublicCatalogPage() {
 
     loadData()
   }, [])
+
+  useEffect(() => {
+    if (!selectedCake) return undefined
+
+    function handleEscape(event) {
+      if (event.key === 'Escape') {
+        setSelectedCake(null)
+      }
+    }
+
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [selectedCake])
 
   const whatsappLink = useMemo(() => {
     if (!telefono) return '#'
@@ -63,11 +77,42 @@ export function PublicCatalogPage() {
         {!loading && !error && (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
             {pasteles.map((cake) => (
-              <CakeCard key={cake.id} cake={cake} />
+              <CakeCard
+                key={cake.id}
+                cake={cake}
+                onImageClick={(selected, imageUrl) =>
+                  setSelectedCake({ name: selected.nombre, imageUrl })
+                }
+              />
             ))}
           </div>
         )}
       </section>
+
+      {selectedCake && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setSelectedCake(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Imagen ampliada de ${selectedCake.name}`}
+        >
+          <button
+            type="button"
+            className="absolute right-4 top-4 rounded-full bg-white px-3 py-1 text-xl font-bold text-[--color-cocoa]"
+            onClick={() => setSelectedCake(null)}
+            aria-label="Cerrar imagen"
+          >
+            X
+          </button>
+          <img
+            src={selectedCake.imageUrl}
+            alt={selectedCake.name}
+            className="max-h-[90vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          />
+        </div>
+      )}
 
       {telefono && (
         <a

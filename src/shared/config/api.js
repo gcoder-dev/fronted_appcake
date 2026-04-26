@@ -1,5 +1,5 @@
-const DEFAULT_API_URL = 'http://localhost:8080/api'
-const DEFAULT_UPLOADS_URL = 'http://localhost:8080'
+const DEFAULT_API_URL = '/api'
+const DEFAULT_UPLOADS_URL = typeof window !== 'undefined' ? window.location.origin : ''
 
 export const API_BASE_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).trim()
 export const UPLOADS_BASE_URL = (
