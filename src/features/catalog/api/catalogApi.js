@@ -1,11 +1,9 @@
-import { http } from '../../../shared/api/httpClient.js'
+import { STATIC_PASTELES, STATIC_TELEFONO } from '../data/staticCatalogData.js'
 
 export async function fetchPasteles() {
-  const { data } = await http.get('/pasteles')
-  return data
+  return STATIC_PASTELES
 }
 
 export async function fetchConfig() {
-  const { data } = await http.get('/config')
-  return data
+  return { telefono: STATIC_TELEFONO }
 }
