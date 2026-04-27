@@ -9,6 +9,7 @@ export const UPLOADS_BASE_URL = (
 export function buildImageUrl(imagePath = '') {
   if (!imagePath) return ''
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) return imagePath
-  if (imagePath.startsWith('/')) return `${UPLOADS_BASE_URL}${imagePath}`
+  // Local static assets in /public should always resolve from the frontend app origin.
+  if (imagePath.startsWith('/')) return imagePath
   return `${UPLOADS_BASE_URL}/uploads/${imagePath}`
 }
